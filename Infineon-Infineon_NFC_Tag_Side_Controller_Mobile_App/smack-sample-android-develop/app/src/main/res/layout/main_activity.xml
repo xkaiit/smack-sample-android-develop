@@ -117,7 +117,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/common_margin_medium"
-        android:layout_marginEnd="@dimen/common_margin_medium">
+        android:layout_marginEnd="@dimen/common_margin_medium"
+        android:visibility="gone"
+        >
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -222,7 +224,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/common_margin_medium"
-        android:text="关锁" />
+        android:text="关锁"
+        android:visibility="gone"
+        />
 
 
 </LinearLayout>

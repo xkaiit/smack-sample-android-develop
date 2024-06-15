@@ -1,11 +1,13 @@
 package com.infineon.smack.sample.smack
 
 import android.nfc.TagLostException
+import android.util.Log
 import com.infineon.smack.sdk.SmackSdk
 import com.infineon.smack.sdk.common.Milliseconds
 import com.infineon.smack.sdk.common.RandomByteArrayFactory
 import com.infineon.smack.sdk.mailbox.SmackMailbox
 import com.infineon.smack.sdk.mailbox.datapoint.MailboxDataPoint.SCRATCH8
+import com.infineon.smack.sdk.smack.charge.ChargeLevel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +23,8 @@ class SampleSmackApi @Inject constructor(private val smackSdk: SmackSdk) {
     val firmwareToggleFlow = MutableStateFlow(false)
 
     private var lastState: SampleSmackState = SampleSmackState(isConnected = false, ByteCount())
+
+    private val lockApi = smackSdk.lockApi
 
     private suspend fun FlowCollector<SampleSmackState>.emit(
         isConnected: Boolean? = null,
@@ -43,6 +47,56 @@ class SampleSmackApi @Inject constructor(private val smackSdk: SmackSdk) {
             startKeepAliveCircle(mailbox, byteCount, useDatapoint)
         } ?: emit(isConnected = false)
     }
+
+
+    /**
+     * 写的测试方法
+     * lock 可以获取到值
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun getStateAndKeepAliv(): Flow<SampleSmackState> = smackSdk.lockApi.getLock()
+        .combine(byteCountStateFlow, ::Pair)
+        .transformLatest { (lock, byteCount) ->
+
+            try {
+
+                if (lock != null) {
+                    emit(SampleSmackState(isConnected = true, byteCount))
+                    val lockKey = lockApi.validatePassword(
+                        lock,
+                        "abc",
+                        System.currentTimeMillis() / 1000,
+                        "123456"
+                    )
+                    Log.i("BtnOpen", "进入了map==========" + lock.lockId + "_" + lock.isNew + "_")
+                    // 初始化会话
+                    lockApi.initializeSession(
+                        lock,
+                        "abc",
+                        System.currentTimeMillis() / 1000,
+                        lockKey
+                    )
+                    do {
+                        val chargeLevel: ChargeLevel = lockApi.getChargeLevel(lock, lockKey)
+                    } while (!chargeLevel.isFullyCharged)
+                    lockApi.unlock(lock, lockKey)
+                } else {
+                    emit(SampleSmackState(isConnected = false, byteCountStateFlow.value))
+                }
+
+
+
+                // log("Mailbox and byte count flow is updated ($byteCount)")
+                lock?.mailbox.let { mailbox ->
+                    // emit(SampleSmackState(isConnected = true, byteCount))
+                    Log.i("lock", "$lock")
+                } ?: emit(SampleSmackState(isConnected = false, byteCount))
+            } catch (exception: Exception){
+                emit(SampleSmackState(isConnected = false, byteCountStateFlow.value))
+                throw exception
+            }
+    }
+
 
     private suspend fun FlowCollector<SampleSmackState>.startKeepAliveCircle(
         mailbox: SmackMailbox,

@@ -17,9 +17,14 @@ import com.infineon.smack.sample.R
 import com.infineon.smack.sample.databinding.MainActivityBinding
 import com.infineon.smack.sdk.SmackSdk
 import com.infineon.smack.sdk.application.lock.Lock
+import com.infineon.smack.sdk.application.lock.LockApi
+import com.infineon.smack.sdk.application.lock.key.LockKey
 import com.infineon.smack.sdk.smack.charge.ChargeLevel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,29 +47,48 @@ class MainActivity : AppCompatActivity() {
         binding.firmwareSwitch.setOnCheckedChangeListener { _, checked ->
             viewModel.setFirmwareToggle(checked)
         }
-        lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.viewState.collect(::updateViewState)
-            }
-        }
+        // lifecycleScope.launch {
+        //     lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        //         viewModel.viewState.collect(::updateViewState)
+        //     }
+        // }
+
         smackSdk.onCreate(this)
 
 
         binding.BtnOpen.setOnClickListener {
-            TODO("这里需要实现NFC开锁功能")
+            // TODO("这里需要实现NFC开锁功能")
             // 1、根据开发文档中的介绍调用：smackSdk.lockApi.unlock(lock, lockKey)实现开锁功能
             // 2、调用：smackSdk.lockApi.unlock(lock, lockKey) 一直拿不到lock、lockKEY的值，导致功能未实现
 
             // 测试开锁的代码
-            testLock()
+            //testLock()
+
+
+            // GlobalScope.launch {
+            //     // viewModel.initAccount()
+            //     Log.i("BtnOpen", "打印日志-------------")
+            //     viewModel.viewStateFlo.collect(::updateViewState)
+            // }
+            // smackSdk.isEnabled = true
+
+            lifecycleScope.launch {
+                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    viewModel.viewStateFlo.collect(::updateViewState)
+                }
+            }
+
+
         }
         binding.BtnClose.setOnClickListener {
-            TODO("这里需要实现NFC关锁功能")
+            // TODO("这里需要实现NFC关锁功能")
             // 1、根据开发文档中的介绍调用：smackSdk.lockApi.lock(lock, lockKey)实现开锁功能
             // 2、调用：smackSdk.lockApi.lock(lock, lockKey) 一直拿不到lock、lockKEY的值，导致功能未实现
+            // smackSdk.isEnabled = false
+
+
 
         }
-
     }
 
     private fun showAlert(@StringRes titleRes: Int, @StringRes messageRes: Int) {
@@ -91,12 +115,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateViewState(state: MainViewState) = with(binding) {
         showConnection(state.isConnected)
-        sentValueTextView.text = state.sentBytesCount.toString()
-        receivedValueTextView.text = state.receivedBytesCount.toString()
-        divergentValueTextView.text = state.divergentBytesCount.toString()
-        firmwareText.isVisible = state.showMissingFirmwareText
+        // sentValueTextView.text = state.sentBytesCount.toString()
+        // receivedValueTextView.text = state.receivedBytesCount.toString()
+        // divergentValueTextView.text = state.divergentBytesCount.toString()
+        // firmwareText.isVisible = state.showMissingFirmwareText
         if (state.alertTitle != null && state.alertMessage != null) {
-            showAlert(state.alertTitle, state.alertMessage)
+            if (state.isConnected == false) {
+                showAlert(state.alertTitle, state.alertMessage)
+            }
         }
     }
 
@@ -107,9 +133,7 @@ class MainActivity : AppCompatActivity() {
         disconnectedTextView.isVisible = !isConnected
     }
 
-
-
-    private var cacheKey: Lock?=null
+    private var cacheKey: Lock? = null
 
     /**
      * 自己写的测试代码---测试开锁功能
@@ -126,14 +150,17 @@ class MainActivity : AppCompatActivity() {
 
         // 测试拿到数据的情况
         lockApi.getLock()?.let {
-            if (it != null){
+            if (it != null) {
                 Log.i("BtnOpen", "it的信息==不等于null===111111111=====$it")
-                it.map {lock ->
+                it.map { lock ->
                     // 代码一直没有进入这里，导致拿不到lock，
                     Log.i("BtnOpen", "打印日志22222222: $lock")
-                    if (lock != null){
-                        Log.i("BtnOpen", "锁的信息=========="+lock.lockId+"_"+lock.isNew+"_")
-                    } else{
+                    if (lock != null) {
+                        Log.i(
+                            "BtnOpen",
+                            "锁的信息==========" + lock.lockId + "_" + lock.isNew + "_"
+                        )
+                    } else {
                         Log.i("BtnOpen", "lock == null")
                     }
                 }
@@ -155,9 +182,7 @@ class MainActivity : AppCompatActivity() {
                     "123456"
                 )
                 cacheKey = lock
-                Log.i("BtnOpen", "进入了map==========" + lock.lockId+"_" + lock.isNew + "_")
-
-
+                Log.i("BtnOpen", "进入了map==========" + lock.lockId + "_" + lock.isNew + "_")
                 // 初始化会话
                 lockApi.initializeSession(
                     lock,
@@ -168,17 +193,13 @@ class MainActivity : AppCompatActivity() {
                 do {
                     val chargeLevel: ChargeLevel = lockApi.getChargeLevel(lock, lockKey)
                 } while (!chargeLevel.isFullyCharged)
-
                 lockApi.unlock(lock, lockKey)
-
             }
         }
-        Log.i("BtnOpen", "锁的信息=========="+ (cacheKey?.lockId ?: null) +"_"+ (cacheKey?.isNew ?: null) +"_")
-
-
+        Log.i(
+            "BtnOpen",
+            "锁的信息==========" + (cacheKey?.lockId ?: null) + "_" + (cacheKey?.isNew
+                ?: null) + "_"
+        )
     }
-
-
-
-
 }

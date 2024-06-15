@@ -86,4 +86,29 @@ class MainViewModel @Inject constructor(
     fun setFirmwareToggle(enabled: Boolean) {
         smackApi.setFirmwareToggle(enabled)
     }
+
+
+    @VisibleForTesting
+    val viewStateFlo: Flow<MainViewState> = smackApi
+        .getStateAndKeepAliv()
+        .flowOn(smackSdk.coroutineDispatcher)
+        .map { pocSmackState -> pocSmackState.toViewState() }
+        .catch { exception ->
+            emit(
+                MainViewState.forError(
+                    getErrorTitleResId(exception),
+                    getErrorMessageResId(exception),
+                    smackApi.firmwareToggleFlow.value
+                )
+            )
+            throw exception
+        }
+        .retry { exception ->
+            exception !is CancellationException
+        }
+
+
+
+
+
 }
